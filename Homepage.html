@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RegionalBank - Dashboard</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/lucide.min.js"></script>
+    <style>
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gray-50">
+    <!-- Top Navigation Bar -->
+    <nav class="bg-blue-600 text-white p-4">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div class="flex items-center space-x-4">
+                <h1 class="text-2xl font-bold">RegionalBank</h1>
+            </div>
+            
+            <div class="flex items-center space-x-6">
+                <button 
+                    class="p-2 hover:bg-blue-700 rounded-full"
+                    onclick="toggleNotifications()"
+                >
+                    <i data-lucide="bell"></i>
+                </button>
+                <button 
+                    class="p-2 hover:bg-blue-700 rounded-full"
+                    onclick="toggleChatbot()"
+                >
+                    <i data-lucide="message-square"></i>
+                </button>
+                <div class="flex items-center space-x-2">
+                    <i data-lucide="user"></i>
+                    <span>John Doe</span>
+                </div>
+                <button class="flex items-center space-x-2 hover:bg-blue-700 rounded-full p-2">
+                    <i data-lucide="log-out"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <div class="flex max-w-7xl mx-auto mt-8 gap-6 p-4">
+        <!-- Sidebar Navigation -->
+        <aside class="w-64 bg-white rounded-lg shadow-lg h-[calc(100vh-8rem)]">
+            <nav class="p-4">
+                <ul class="space-y-4">
+                    <li class="flex items-center space-x-3 p-3 bg-blue-50 text-blue-600 rounded-lg">
+                        <i data-lucide="home"></i>
+                        <span>Dashboard</span>
+                    </li>
+                    <li class="flex items-center space-x-3 p-3 hover:bg-gray-50 rounded-lg cursor-pointer">
+                        <i data-lucide="pie-chart"></i>
+                        <span>Financial Planning</span>
+                    </li>
+                    <li class="flex items-center space-x-3 p-3 hover:bg-gray-50 rounded-lg cursor-pointer">
+                        <i data-lucide="wallet"></i>
+                        <span>Transactions</span>
+                    </li>
+                    <li class="flex items-center space-x-3 p-3 hover:bg-gray-50 rounded-lg cursor-pointer">
+                        <i data-lucide="settings"></i>
+                        <span>Settings</span>
+                    </li>
+                    <li class="flex items-center space-x-3 p-3 hover:bg-gray-50 rounded-lg cursor-pointer">
+                        <i data-lucide="help-circle"></i>
+                        <span>Support</span>
+                    </li>
+                </ul>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 space-y-6">
+            <!-- Quick Actions -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="bg-white p-6 rounded-lg shadow-lg">
+                    <h3 class="text-lg font-semibold mb-2">Account Balance</h3>
+                    <p class="text-2xl font-bold">$12,345.67</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-lg">
+                    <h3 class="text-lg font-semibold mb-2">Recent Transactions</h3>
+                    <p class="text-2xl font-bold">15</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-lg">
+                    <h3 class="text-lg font-semibold mb-2">Investment Value</h3>
+                    <p class="text-2xl font-bold">$5,678.90</p>
+                </div>
+            </div>
+
+            <!-- Financial Updates -->
+            <div class="bg-white p-6 rounded-lg shadow-lg">
+                <h2 class="text-xl font-semibold mb-4">Financial Updates</h2>
+                <div class="space-y-4">
+                    <div class="p-4 bg-blue-50 rounded-lg">
+                        <h3 class="font-medium">Market Update</h3>
+                        <p class="text-gray-600">S&P 500 up 1.2% today</p>
+                    </div>
+                    <div class="p-4 bg-green-50 rounded-lg">
+                        <h3 class="font-medium">Investment Opportunity</h3>
+                        <p class="text-gray-600">New high-yield savings account available</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Chatbot Modal -->
+    <div id="chatbot" class="hidden fixed bottom-4 right-4 w-96 h-96 bg-white rounded-lg shadow-xl p-4">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="font-semibold">Customer Support</h3>
+            <button 
+                class="text-gray-500 hover:text-gray-700"
+                onclick="toggleChatbot()"
+            >
+                ×
+            </button>
+        </div>
+        <div class="h-72 overflow-y-auto bg-gray-50 rounded p-4">
+            <!-- Chat messages -->
+            <div class="bg-blue-100 p-3 rounded-lg mb-2">
+                Hello! How can I help you today?
+            </div>
+        </div>
+        <div class="mt-4">
+            <input 
+                type="text" 
+                placeholder="Type your message..."
+                class="w-full p-2 border rounded-lg"
+            />
+        </div>
+    </div>
+
+    <!-- Notifications Panel -->
+    <div id="notifications" class="hidden fixed top-16 right-4 w-80 bg-white rounded-lg shadow-xl">
+        <div class="p-4">
+            <h3 class="font-semibold mb-4">Notifications</h3>
+            <div class="space-y-4">
+                <div class="p-3 bg-gray-50 rounded-lg">
+                    <p class="text-sm">New statement available</p>
+                    <span class="text-xs text-gray-500">2 hours ago</span>
+                </div>
+                <div class="p-3 bg-gray-50 rounded-lg">
+                    <p class="text-sm">Upcoming bill payment</p>
+                    <span class="text-xs text-gray-500">1 day ago</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+
+        // Toggle functions for notifications and chatbot
+        function toggleNotifications() {
+            const notifications = document.getElementById('notifications');
+            notifications.classList.toggle('hidden');
+        }
+
+        function toggleChatbot() {
+            const chatbot = document.getElementById('chatbot');
+            chatbot.classList.toggle('hidden');
+        }
+    </script>
+</body>
+</html>
