@@ -297,6 +297,22 @@ def update_transaction_risk(transaction_id, ai_analysis):
         cursor.close()
         conn.close()
 
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///bank.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+@app.route('/set_api_key', methods=['POST'])
+def set_api_key():
+    api_key = request.form['api_key']
+    session['api_key'] = api_key  # Store API key in session
+    os.environ['API_KEY'] = api_key  # Set the environment variable dynamically
+    genai.configure(api_key=api_key)  # Configure Gemini API with the new key
+    return redirect(url_for('index'))
+
+db = SQLAlchemy(app)
+
+with app.app_context():
+    db.create_all()
+    
 # Database Models
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -317,6 +333,7 @@ class FinancialProfile(db.Model):
     total_assets = db.Column(db.Float)
     selected_portfolios = db.Column(db.String(500))  # Store as comma-separated string
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
 @app.route("/financial_planning", methods=["GET", "POST"])
 def financial_planning():
     if request.method == "POST":
