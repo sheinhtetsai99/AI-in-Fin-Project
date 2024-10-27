@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request, session
+from flask import Flask, jsonify, request, session, render_template, redirect, url_for, flash
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_cors import CORS
 from datetime import timedelta
@@ -6,12 +6,11 @@ import psycopg2
 import psycopg2.extras
 
 app = Flask(__name__)
-
-# CRITICAL: Always set a secure secret key for sessions
-app.config['SECRET_KEY'] = 'your-secure-secret-key-here'  # Change this to a secure random value
+app.config['SECRET_KEY'] = 'your-secure-secret-key-here'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30)
 CORS(app)
 
+# Database configuration remains the same...
 DB_HOST = "localhost"
 DB_NAME = "sampledb"
 DB_USER = "postgres"
@@ -21,48 +20,91 @@ def get_db_connection():
     return psycopg2.connect(dbname=DB_NAME, user=DB_USER, password=DB_PASS, host=DB_HOST)
 
 @app.route('/')
-def home():
+def index():
     if 'username' in session:
-        username = session['username']
-        return jsonify({'message': 'You are already logged in', 'username': username})
-    else:
-        resp = jsonify({'message': 'Unauthorized'})
-        resp.status_code = 401
-        return resp
+        return redirect(url_for('home'))
+    return redirect(url_for('login'))
 
-@app.route('/login', methods=['POST'])
+@app.route('/home')
+def home():
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    return render_template('home.html', username=session['username'])
+
+@app.route('/login', methods=['GET', 'POST'])
 def login():
+    if request.method == 'GET':
+        return render_template('login.html')
+    
     try:
-        _json = request.json
-        _username = _json.get('username')
-        _password = _json.get('password')
+        username = request.form.get('username')
+        password = request.form.get('password')
 
-        # Validate the received values
-        if not _username or not _password:
-            return jsonify({'message': 'Missing username or password'}), 400
+        if not username or not password:
+            flash('Missing username or password', 'error')
+            return render_template('login.html')
 
-        # Check user exists
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
-        sql = "SELECT * FROM useraccount WHERE username=%s"
-        cursor.execute(sql, (_username,))
-        row = cursor.fetchone()
+        cursor.execute("SELECT * FROM useraccount WHERE username=%s", (username,))
+        user = cursor.fetchone()
 
-        if not row:
-            return jsonify({'message': 'User not found'}), 404
-
-        stored_password_hash = row['password']
-        
-        # Check if the provided password matches the stored hash
-        if check_password_hash(stored_password_hash, _password):
-            session['username'] = row['username']
-            return jsonify({'message': 'You are logged in successfully'})
+        if user and check_password_hash(user['password'], password):
+            session['username'] = username
+            return redirect(url_for('home'))
         else:
-            return jsonify({'message': 'Invalid password'}), 401
+            flash('Invalid username or password', 'error')
+            return render_template('login.html')
 
     except Exception as e:
-        return jsonify({'message': f'An error occurred: {str(e)}'}), 500
+        flash(f'An error occurred: {str(e)}', 'error')
+        return render_template('login.html')
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'GET':
+        return render_template('register.html')
+    
+    try:
+        username = request.form.get('username')
+        password = request.form.get('password')
+        confirm_password = request.form.get('confirm_password')
+
+        if not username or not password or not confirm_password:
+            flash('All fields are required', 'error')
+            return render_template('register.html')
+
+        if password != confirm_password:
+            flash('Passwords do not match', 'error')
+            return render_template('register.html')
+
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+        cursor.execute("SELECT * FROM useraccount WHERE username=%s", (username,))
+        if cursor.fetchone():
+            flash('Username already exists', 'error')
+            return render_template('register.html')
+
+        password_hash = generate_password_hash(password)
+        cursor.execute(
+            "INSERT INTO useraccount (username, password) VALUES (%s, %s)",
+            (username, password_hash)
+        )
+        conn.commit()
+
+        flash('Registration successful! Please login.', 'success')
+        return redirect(url_for('login'))
+
+    except Exception as e:
+        flash(f'An error occurred: {str(e)}', 'error')
+        return render_template('register.html')
     finally:
         if cursor:
             cursor.close()
@@ -71,47 +113,8 @@ def login():
 
 @app.route('/logout')
 def logout():
-    if 'username' in session:
-        session.pop('username', None)
-    return jsonify({'message': 'You successfully logged out'})
+    session.pop('username', None)
+    return redirect(url_for('login'))
 
-# Add a registration route to properly hash passwords when storing them
-@app.route('/register', methods=['POST'])
-def register():
-    try:
-        _json = request.json
-        _username = _json.get('username')
-        _password = _json.get('password')
-
-        if not _username or not _password:
-            return jsonify({'message': 'Missing username or password'}), 400
-
-        # Generate password hash
-        password_hash = generate_password_hash(_password)
-
-        conn = get_db_connection()
-        cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-
-        # Check if username already exists
-        cursor.execute("SELECT * FROM useraccount WHERE username=%s", (_username,))
-        if cursor.fetchone():
-            return jsonify({'message': 'Username already exists'}), 409
-
-        # Insert new user with hashed password
-        print(f'hashed password: {password_hash}')
-        sql = "INSERT INTO useraccount (username, password) VALUES (%s, %s)"
-        cursor.execute(sql, (_username, password_hash))
-        conn.commit()
-
-        return jsonify({'message': 'User registered successfully'}), 201
-
-    except Exception as e:
-        return jsonify({'message': f'An error occurred: {str(e)}'}), 500
-    finally:
-        if cursor:
-            cursor.close()
-        if conn:
-            conn.close()
-
-if __name__ == "__main__":
-    app.run(debug=True)  # Set debug=False in production
+if __name__ == '__main__':
+    app.run(debug=True)
