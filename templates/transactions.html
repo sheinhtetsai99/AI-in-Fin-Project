@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+        <h2 class="text-2xl font-bold mb-4">Current Balance</h2>
+        <p class="text-3xl font-bold text-blue-600">${{ "%.2f"|format(current_balance) }}</p>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-lg p-6">
+        <h2 class="text-2xl font-bold mb-4">Transaction History</h2>
+        
+        <div class="overflow-x-auto">
+            <table class="min-w-full bg-white">
+                <thead>
+                    <tr class="bg-gray-100">
+                        <th class="px-6 py-3 border-b-2 border-gray-200 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                            Date
+                        </th>
+                        <th class="px-6 py-3 border-b-2 border-gray-200 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                            Description
+                        </th>
+                        <th class="px-6 py-3 border-b-2 border-gray-200 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                            Amount
+                        </th>
+                        <th class="px-6 py-3 border-b-2 border-gray-200 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                            Balance
+                        </th>
+                        <th class="px-6 py-3 border-b-2 border-gray-200 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                            Risk Score
+                        </th>
+                        <th class="px-6 py-3 border-b-2 border-gray-200 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                            AI Analysis
+                        </th>
+                        <th class="px-6 py-3 border-b-2 border-gray-200 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                            Actions
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white">
+                    {% for transaction in transactions %}
+                    <tr class="{% if transaction.risk_score > 70 %}bg-red-50{% elif transaction.risk_score > 40 %}bg-yellow-50{% endif %}">
+                        <td class="px-6 py-4 whitespace-no-wrap border-b border-gray-200">
+                            {{ transaction.transaction_date.strftime('%Y-%m-%d %H:%M') }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-no-wrap border-b border-gray-200">
+                            {{ transaction.description }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-no-wrap border-b border-gray-200 
+                            {% if transaction.transaction_type == 'credit' %}text-green-600{% else %}text-red-600{% endif %}">
+                            {% if transaction.transaction_type == 'credit' %}+{% endif %}
+                            ${{ "%.2f"|format(transaction.amount|abs) }}
+                            {% if transaction.transaction_type == 'debit' %}-{% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-no-wrap border-b border-gray-200">
+                            ${{ "%.2f"|format(transaction.balance_after) }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-no-wrap border-b border-gray-200 text-center">
+                            {% if transaction.risk_score %}
+                                <div class="inline-block px-3 py-1 rounded-full 
+                                    {% if transaction.risk_score > 70 %}bg-red-100 text-red-800
+                                    {% elif transaction.risk_score > 40 %}bg-yellow-100 text-yellow-800
+                                    {% else %}bg-green-100 text-green-800{% endif %}">
+                                    {{ "%.1f"|format(transaction.risk_score) }}
+                                </div>
+                            {% else %}
+                                <span class="text-gray-500">Not analyzed</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-no-wrap border-b border-gray-200 text-sm">
+                            {% if transaction.ai_reasoning %}
+                                <div class="text-sm">{{ transaction.ai_reasoning }}</div>
+                                {% if transaction.ai_flags %}
+                                    <div class="text-xs text-gray-500 mt-1">
+                                        {% for flag in transaction.ai_flags %}
+                                            <span class="inline-block bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs mr-1">{{ flag }}</span>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-gray-500">Not analyzed</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-no-wrap border-b border-gray-200 text-center">
+                            <button onclick="analyzeTransaction({{ transaction.transaction_id }})"
+                                    class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded text-sm">
+                                {% if transaction.risk_score %}Re-analyze{% else %}Analyze{% endif %}
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Add this JavaScript at the bottom of your template -->
+<script>
+function analyzeTransaction(transactionId) {
+    // Show loading state
+    const button = event.target;
+    const originalText = button.textContent;
+    button.textContent = 'Analyzing...';
+    button.disabled = true;
+
+    fetch(`/analyze_transaction/${transactionId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert('Error: ' + data.error);
+            } else {
+                // Reload the page to show updated analysis
+                location.reload();
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while analyzing the transaction');
+        })
+        .finally(() => {
+            // Reset button state if no reload happened
+            button.textContent = originalText;
+            button.disabled = false;
+        });
+}
+</script>
+{% endblock %}
