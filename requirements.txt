@@ -7,3 +7,4 @@ textblob
 Werkzeug==2.3.7
 python-dotenv==1.0.0
 SQLAlchemy==2.0.21
+flask_cors 
