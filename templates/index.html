@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RegionalBank - Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/lucide.min.js"></script>
+</head>
+<body class="min-h-screen bg-gray-50">
+    <!-- Top Navigation Bar -->
+    <nav class="bg-blue-600 text-white p-4">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div class="flex items-center space-x-4">
+                <h1 class="text-2xl font-bold">RegionalBank</h1>
+            </div>
+            <div class="flex items-center space-x-6">
+                <button class="p-2 hover:bg-blue-700 rounded-full">
+                    <i data-lucide="bell"></i>
+                </button>
+                <button class="p-2 hover:bg-blue-700 rounded-full">
+                    <i data-lucide="message-square"></i>
+                </button>
+                <div class="flex items-center space-x-2">
+                    <i data-lucide="user"></i>
+                    <span>John Doe</span>
+                </div>
+                <button class="flex items-center space-x-2 hover:bg-blue-700 rounded-full p-2">
+                    <i data-lucide="log-out"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="flex max-w-7xl mx-auto mt-8 gap-6 p-4">
+        <!-- Sidebar Navigation -->
+        <aside class="w-64 bg-white rounded-lg shadow-lg h-[calc(100vh-8rem)]">
+            <nav class="p-4">
+                <ul class="space-y-4">
+                    <li class="flex items-center space-x-3 p-3 bg-blue-50 text-blue-600 rounded-lg">
+                        <i data-lucide="home"></i>
+                        <span>Dashboard</span>
+                    </li>
+                    <li class="flex items-center space-x-3 p-3 {{ 'bg-blue-50 text-blue-600' if request.path == url_for('financial_planning') else 'hover:bg-gray-50' }} rounded-lg cursor-pointer">
+                        <a href="{{ url_for('financial_planning') }}" class="flex items-center space-x-3">
+                            <i data-lucide="pie-chart"></i>
+                            <span>Financial Planning</span>
+                        </a>
+                    </li>
+                    <li class="flex items-center space-x-3 p-3 hover:bg-gray-50 rounded-lg cursor-pointer">
+                        <i data-lucide="wallet"></i>
+                        <span>Transactions</span>
+                    </li>
+                    <li class="flex items-center space-x-3 p-3 hover:bg-gray-50 rounded-lg cursor-pointer">
+                        <i data-lucide="settings"></i>
+                        <span>Settings</span>
+                    </li>
+                </ul>
+            </nav>
+        </aside>
+
+        <!-- Main Content Area (Dashboard) -->
+        <main class="flex-1 bg-white rounded-lg shadow-lg p-6">
+            <h2 class="text-2xl font-bold mb-6">Welcome to RegionalBank</h2>
+            
+            <!-- Quick Stats -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <h3 class="text-lg font-semibold mb-2">Account Balance</h3>
+                    <p class="text-2xl font-bold">$12,345.67</p>
+                </div>
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <h3 class="text-lg font-semibold mb-2">Investments</h3>
+                    <p class="text-2xl font-bold">$5,678.90</p>
+                </div>
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <h3 class="text-lg font-semibold mb-2">Recent Activity</h3>
+                    <p class="text-2xl font-bold">15 transactions</p>
+                </div>
+            </div>
+
+            <!-- Welcome Message -->
+            <div class="bg-blue-50 p-6 rounded-lg">
+                <h3 class="text-xl font-semibold mb-2">Get Started</h3>
+                <p class="text-gray-600 mb-4">Welcome to your personalized banking dashboard. Here you can manage your accounts, view transactions, and plan your financial future.</p>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+    </script>
+</body>
+</html>
+

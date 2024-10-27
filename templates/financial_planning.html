@@ -1,0 +1,178 @@
+<!-- templates/financial_planning.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Financial Planning - RegionalBank</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body class="bg-gray-50">
+    <nav class="bg-blue-600 text-white p-4">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <a href="{{ url_for('dashboard') }}" class="text-2xl font-bold">RegionalBank</a>
+            <div class="flex items-center space-x-4">
+                {% if session.get('user_id') %}
+                <a href="{{ url_for('logout') }}" class="hover:bg-blue-700 px-4 py-2 rounded">Logout</a>
+                {% else %}
+                <a href="{{ url_for('login') }}" class="hover:bg-blue-700 px-4 py-2 rounded">Login</a>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <div class="max-w-4xl mx-auto p-6">
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <h2 class="text-2xl font-bold mb-6">Financial Planning Portal</h2>
+
+            <form id="financialPlanningForm" method="POST" action="{{ url_for('financial_planning') }}" class="space-y-6">
+                <!-- Personal Information -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Age</label>
+                        <input type="number" name="age" required class="mt-1 block w-full rounded-md border border-gray-300 p-2">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Gender</label>
+                        <select name="gender" required class="mt-1 block w-full rounded-md border border-gray-300 p-2">
+                            <option value="">Select Gender</option>
+                            <option value="male">Male</option>
+                            <option value="female">Female</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Annual Income</label>
+                        <input type="number" name="annual_income" required class="mt-1 block w-full rounded-md border border-gray-300 p-2">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Total Assets</label>
+                        <input type="number" name="total_assets" required class="mt-1 block w-full rounded-md border border-gray-300 p-2">
+                    </div>
+                </div>
+
+                <!-- Investment Preferences -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Risk Level</label>
+                        <select name="risk_level" required class="mt-1 block w-full rounded-md border border-gray-300 p-2">
+                            <option value="conservative">Conservative</option>
+                            <option value="moderate">Moderate</option>
+                            <option value="aggressive">Aggressive</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Investment Horizon</label>
+                        <select name="investment_horizon" required class="mt-1 block w-full rounded-md border border-gray-300 p-2">
+                            <option value="short">Short Term (1-3 years)</option>
+                            <option value="medium">Medium Term (3-7 years)</option>
+                            <option value="long">Long Term (7+ years)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Region</label>
+                        <select name="region" required class="mt-1 block w-full rounded-md border border-gray-300 p-2">
+                            <option value="asia_pacific">Asia Pacific</option>
+                            <option value="north_america">North America</option>
+                            <option value="europe">Europe</option>
+                            <option value="global">Global</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Portfolio Selection -->
+                <div class="mt-8">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Select Interested Investment Products</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="border rounded-lg p-4">
+                            <label class="flex items-start space-x-3">
+                                <input type="checkbox" name="portfolios[]" value="retirement_funds" class="mt-1">
+                                <div>
+                                    <h4 class="font-medium">Retirement Funds</h4>
+                                    <p class="text-sm text-gray-600">Risk: Low</p>
+                                    <p class="text-sm text-gray-600">Return: 4-6%</p>
+                                </div>
+                            </label>
+                        </div>
+                        <div class="border rounded-lg p-4">
+                            <label class="flex items-start space-x-3">
+                                <input type="checkbox" name="portfolios[]" value="sustainable_investments" class="mt-1">
+                                <div>
+                                    <h4 class="font-medium">Sustainable Investments</h4>
+                                    <p class="text-sm text-gray-600">Risk: Moderate</p>
+                                    <p class="text-sm text-gray-600">Return: 5-7%</p>
+                                </div>
+                            </label>
+                        </div>
+                        <div class="border rounded-lg p-4">
+                            <label class="flex items-start space-x-3">
+                                <input type="checkbox" name="portfolios[]" value="index_funds" class="mt-1">
+                                <div>
+                                    <h4 class="font-medium">Index Funds</h4>
+                                    <p class="text-sm text-gray-600">Risk: Low</p>
+                                    <p class="text-sm text-gray-600">Return: 6-8%</p>
+                                </div>
+                            </label>
+                        </div>
+                        <div class="border rounded-lg p-4">
+                            <label class="flex items-start space-x-3">
+                                <input type="checkbox" name="portfolios[]" value="open_to_explore" class="mt-1">
+                                <div>
+                                    <h4 class="font-medium">Open to Explore</h4>
+                                    <p class="text-sm text-gray-600">Risk: Varies</p>
+                                    <p class="text-sm text-gray-600">Return: Varies</p>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Get Advice Button -->
+                <button type="submit" class="mt-4 inline-block bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                    Get Advice
+                </button>
+            </form>
+
+            <!-- Advice Output -->
+            <div id="adviceOutput" class="mt-8 hidden">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">Your Personalized Financial Advice</h3>
+                <div class="bg-blue-50 rounded-lg p-4">
+                    <pre id="adviceText" class="whitespace-pre-wrap font-sans"></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            $('#financialPlanningForm').on('submit', function(e) {
+                e.preventDefault();
+                
+                // Show loading state
+                $('#adviceText').text('Generating advice...');
+                $('#adviceOutput').removeClass('hidden');
+                
+                $.ajax({
+                    url: '{{ url_for("financial_planning") }}',
+                    method: 'POST',
+                    data: $(this).serialize(),
+                    success: function(response) {
+                        if (response.advice) {
+                            // Format the text to preserve newlines
+                            const formattedAdvice = response.advice.replace(/\n/g, '<br>');
+                            $('#adviceText').html(formattedAdvice);
+                            $('#adviceOutput').removeClass('hidden');
+                        } else {
+                            $('#adviceText').html('No advice generated. Please try again.');
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        $('#adviceText').html('Error generating advice: ' + error);
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
