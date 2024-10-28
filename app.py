@@ -15,13 +15,63 @@ from datetime import datetime
 import logging
 import sys
 
+TRANSACTION_CHOICES = {
+    'descriptions': [
+        'Grocery Shopping',
+        'Amazon.com',
+        'Subway Pass',
+        'Restaurant Payment',
+        'Utility Bill Payment',
+        'ATM Withdrawal',
+        'Wire Transfer',
+        'Luxury Purchase',
+        'Transfer to Cryptocurrency Exchange',
+        'Online Gaming Payment'
+    ],
+    'locations': [
+        'New York, NY',
+        'Brooklyn, NY',
+        'Queens, NY',
+        'Manhattan, NY',
+        'Newark, NJ',  # Nearby city
+        'Los Angeles, CA',  # Unusual but possible
+        'Miami, FL',  # Unusual but possible
+        'Lagos, Nigeria',  # Potentially suspicious
+        'Moscow, Russia',  # Potentially suspicious
+        'Dubai, UAE'  # Potentially suspicious
+    ],
+    'merchant_names': [
+        'Whole Foods Market',
+        'Amazon',
+        'MTA',
+        'Con Edison',
+        'Chase ATM',
+        'Best Buy',
+        'Unknown Merchant',
+        'Crypto Exchange XYZ',
+        'Foreign Luxury Store',
+        'Online Casino'
+    ],
+    'transaction_methods': [
+        'card_present',
+        'contactless_payment',
+        'online_purchase',
+        'wire_transfer',
+        'mobile_payment',
+        'atm_withdrawal',
+        'cryptocurrency',
+        'foreign_pos',
+        'phone_order',
+        'unusual_terminal'
+    ]
+}
+
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secure-secret-key-here'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30)
 CORS(app)
 
 load_dotenv()
-
 
 client = openai.OpenAI(
     api_key= os.getenv('OPENAI_KEY')
@@ -82,6 +132,10 @@ def login():
             cursor.close()
         if conn:
             conn.close()
+
+@app.route('/get_transaction_choices')
+def get_transaction_choices():
+    return jsonify(TRANSACTION_CHOICES)
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -181,9 +235,14 @@ def transactions():
         
         transactions = cursor.fetchall()
 
+        # Pass the TRANSACTION_CHOICES to the template
         return render_template('transactions.html', 
                              transactions=transactions,
-                             current_balance=current_balance)
+                             current_balance=current_balance,
+                             descriptions=TRANSACTION_CHOICES['descriptions'],
+                             locations=TRANSACTION_CHOICES['locations'],
+                             merchant_names=TRANSACTION_CHOICES['merchant_names'],
+                             transaction_methods=TRANSACTION_CHOICES['transaction_methods'])
 
     except Exception as e:
         flash(f'An error occurred: {str(e)}', 'error')
@@ -194,11 +253,92 @@ def transactions():
         if conn:
             conn.close()
 
+@app.route('/insert_transaction', methods=['POST'])
+def insert_transaction():
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        
+        # Get the latest balance
+        cursor.execute("""
+            SELECT balance_after as current_balance 
+            FROM transactions 
+            WHERE username = %s 
+            ORDER BY transaction_date DESC, transaction_id DESC 
+            LIMIT 1
+        """, (session['username'],))
+        
+        result = cursor.fetchone()
+        current_balance = float(result['current_balance']) if result else 0.00
+        
+        # Calculate new balance
+        amount = float(request.form['amount'])
+        if request.form['transaction_type'] == 'debit':
+            amount = -amount  # Make amount negative for debits
+        new_balance = current_balance + amount
+        
+        # Insert new transaction
+        cursor.execute("""
+            INSERT INTO transactions (
+                username,
+                transaction_date,
+                description,
+                amount,
+                transaction_type,
+                balance_after,
+                merchant_name,
+                location,
+                transaction_method,
+                device_id,
+                ip_address,
+                status
+            ) VALUES (
+                %s, NOW(), %s, %s, %s, %s, %s, %s, %s, 'device_123', '192.168.1.1', 'pending'
+            ) RETURNING transaction_id
+        """, (
+            session['username'],
+            request.form['description'],
+            amount,
+            request.form['transaction_type'],
+            new_balance,
+            request.form['merchant_name'],
+            request.form['location'],
+            request.form['transaction_method']
+        ))
+        
+        # Get the new transaction ID
+        transaction_id = cursor.fetchone()['transaction_id']
+        conn.commit()
+        
+        # Perform AI analysis on the new transaction
+        analyze_transaction_with_ai(transaction_id)
+        
+        flash('Transaction inserted successfully!', 'success')
+        return redirect(url_for('transactions'))
+        
+    except Exception as e:
+        flash(f'An error occurred: {str(e)}', 'error')
+        return redirect(url_for('transactions'))
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
+@app.route('/reanalyze_all', methods=['POST'])
+def reanalyze_transactions_endpoint():
+    if 'username' not in session:
+        return jsonify({"error": "Not authenticated"}), 401
+    
+    result = reanalyze_all_transactions()
+    return jsonify(result)
+
 @app.route('/analyze_transaction/<int:transaction_id>')
 def analyze_transaction_with_ai(transaction_id):
-    """Use ChatGPT to analyze transaction and determine risk score"""
     try:
-        # First, get the transaction details from the database
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         
@@ -221,9 +361,14 @@ def analyze_transaction_with_ai(transaction_id):
         if not transaction:
             return jsonify({'error': 'Transaction not found'}), 404
 
-        # Construct a natural language description of the transaction
+        # Updated prompt with New York context
         transaction_description = f"""
-        Please analyze this bank transaction for potential fraud and provide a risk score between 0-100:
+        Please analyze this bank transaction for potential fraud, considering that the account holder lives in New York City. Provide a risk score between 0-100. Consider the following context:
+        - Normal patterns include transactions in NY boroughs and nearby states
+        - Regular commuting patterns within NYC
+        - Common NY merchants and services
+        - Occasional domestic travel is normal
+        - International transactions should be scrutinized but not automatically flagged
         
         Transaction Details:
         - Amount: ${abs(float(transaction['amount']))}
@@ -235,27 +380,24 @@ def analyze_transaction_with_ai(transaction_id):
         - IP Address: {transaction['ip_address']}
         - Time: {transaction['transaction_date']}
         
-        Please respond in JSON format with the following structure:
+        Please respond in JSON format with:
         {{
             "risk_score": <number between 0-100>,
-            "reasoning": "<brief explanation>",
-            "flags": ["<any specific concerns>"]
+            "reasoning": "<brief explanation considering NY context>",
+            "flags": ["<specific concerns if any>"]
         }}
         """
 
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "You are a fraud detection AI specializing in financial transactions. Analyze transactions and provide risk scores based on patterns and anomalies."},
+                {"role": "system", "content": "You are a fraud detection AI for a New York City bank. You understand normal NYC transaction patterns and lifestyle. Flag only genuinely suspicious activities, not regular NYC living patterns."},
                 {"role": "user", "content": transaction_description}
             ],
             temperature=0.7
         )
         
-        # Parse the JSON response
         result = json.loads(response.choices[0].message.content)
-        
-        # Update the transaction with the AI analysis
         update_transaction_risk(transaction_id, result)
         
         return jsonify(result)
@@ -263,6 +405,132 @@ def analyze_transaction_with_ai(transaction_id):
     except Exception as e:
         print(f"Error in AI analysis: {str(e)}")
         return jsonify({"error": str(e)}), 500
+    
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
+def reanalyze_all_transactions():
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        
+        # Get all transactions
+        cursor.execute("""
+            SELECT 
+                transaction_id,
+                amount,
+                transaction_type,
+                location,
+                merchant_name,
+                transaction_method,
+                device_id,
+                ip_address,
+                transaction_date
+            FROM transactions 
+            ORDER BY transaction_date DESC
+        """)
+        
+        transactions = cursor.fetchall()
+        
+        for transaction in transactions:
+            # Construct context-aware prompt for each transaction
+            prompt = f"""
+            Analyze this bank transaction for potential fraud. Consider these guidelines:
+            
+            Base Context:
+            - Account holder is based in New York City
+            - Normal radius includes NY metro area (NYC boroughs, NJ, CT)
+            - Expected merchant types: retail, restaurants, transit, utilities
+            - Regular commuting patterns within NYC
+            - Common transaction methods: card_present, contactless, online
+            
+            Specific Risk Factors to Consider:
+            1. Location Risk
+                - NYC metro area: Low risk
+                - Other US cities: Moderate risk if unusual
+                - International: High risk unless previously established pattern
+            
+            2. Amount Risk
+                - Compare to transaction type and merchant
+                - Unusual amounts for merchant type
+                - Round numbers in wire transfers
+            
+            3. Method Risk
+                - Card present outside normal area
+                - Wire transfers to unknown accounts
+                - Unusual payment methods for merchant
+            
+            4. Pattern Risk
+                - Device/IP changes
+                - Velocity of transactions
+                - Merchant category alignment
+            
+            Transaction Details:
+            - Amount: ${abs(float(transaction['amount']))}
+            - Type: {transaction['transaction_type']}
+            - Location: {transaction['location']}
+            - Merchant: {transaction['merchant_name']}
+            - Method: {transaction['transaction_method']}
+            - Device ID: {transaction['device_id']}
+            - IP: {transaction['ip_address']}
+            - Time: {transaction['transaction_date']}
+            
+            Provide analysis in this JSON format:
+            {{
+                "risk_score": <0-100>,
+                "reasoning": "<brief explanation>",
+                "flags": ["<specific risk factors>"]
+            }}
+            
+            Risk Score Guidelines:
+            0-30: Low risk, normal NYC patterns
+            31-60: Moderate risk, unusual but explainable
+            61-80: High risk, multiple concerns
+            81-100: Very high risk, immediate attention needed
+            """
+
+            response = client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": "You are a NYC-based fraud detection AI. You understand normal NYC transaction patterns and typical consumer behavior in the metropolitan area."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.3
+            )
+            
+            result = json.loads(response.choices[0].message.content)
+            
+            # Update the transaction with new analysis
+            cursor.execute("""
+                UPDATE transactions 
+                SET risk_score = %s,
+                    ai_reasoning = %s,
+                    ai_flags = %s,
+                    status = CASE 
+                        WHEN %s >= 80 THEN 'flagged'
+                        WHEN %s >= 60 THEN 'suspicious'
+                        ELSE 'completed' 
+                    END
+                WHERE transaction_id = %s
+            """, (
+                result['risk_score'],
+                result['reasoning'],
+                json.dumps(result['flags']),
+                result['risk_score'],
+                result['risk_score'],
+                transaction['transaction_id']
+            ))
+            
+            conn.commit()
+            
+        return {"message": "Successfully reanalyzed all transactions"}
+        
+    except Exception as e:
+        print(f"Error in reanalysis: {str(e)}")
+        return {"error": str(e)}
     
     finally:
         if cursor:
