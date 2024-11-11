@@ -1,7 +1,7 @@
 from flask import Flask, jsonify, request, session, render_template, redirect, url_for, flash
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_cors import CORS
-from datetime import timedelta
+from datetime import timedelta, datetime, timezone
 import psycopg2
 import psycopg2.extras
 from openai import OpenAI
@@ -9,12 +9,19 @@ import json
 import os
 import openai
 from dotenv import load_dotenv
-from flask_sqlalchemy import SQLAlchemy
-import google.generativeai as genai
-from datetime import datetime
+import yfinance as yf
+import requests
 import logging
 import sys
 
+# Configure logging
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[logging.StreamHandler(sys.stdout)]
+)
+
+# Transaction choices for form population
 TRANSACTION_CHOICES = {
     'descriptions': [
         'Grocery Shopping',
@@ -33,12 +40,12 @@ TRANSACTION_CHOICES = {
         'Brooklyn, NY',
         'Queens, NY',
         'Manhattan, NY',
-        'Newark, NJ',  # Nearby city
-        'Los Angeles, CA',  # Unusual but possible
-        'Miami, FL',  # Unusual but possible
-        'Lagos, Nigeria',  # Potentially suspicious
-        'Moscow, Russia',  # Potentially suspicious
-        'Dubai, UAE'  # Potentially suspicious
+        'Newark, NJ',
+        'Los Angeles, CA',
+        'Miami, FL',
+        'Lagos, Nigeria',
+        'Moscow, Russia',
+        'Dubai, UAE'
     ],
     'merchant_names': [
         'Whole Foods Market',
@@ -66,6 +73,10 @@ TRANSACTION_CHOICES = {
     ]
 }
 
+# Stock monitoring
+MAGNIFICENT_7_SYMBOLS = ["AAPL", "MSFT", "NVDA", "TSLA", "GOOGL", "AMZN", "META"]
+MONITORING_SYMBOLS = set(MAGNIFICENT_7_SYMBOLS)
+
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secure-secret-key-here'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30)
@@ -73,11 +84,12 @@ CORS(app)
 
 load_dotenv()
 
+# OpenAI client initialization
 client = openai.OpenAI(
-    api_key= os.getenv('OPENAI_KEY')
+    api_key=os.getenv('OPENAI_KEY')
 )
 
-# Database configuration remains the same...
+# Database configuration
 DB_HOST = "localhost"
 DB_NAME = "sampledb"
 DB_USER = "postgres"
@@ -86,11 +98,43 @@ DB_PASS = "password"
 def get_db_connection():
     return psycopg2.connect(dbname=DB_NAME, user=DB_USER, password=DB_PASS, host=DB_HOST)
 
+# Stock data functions
+def get_stock_data(symbols):
+    stock_data = {}
+    for symbol in symbols:
+        stock = yf.Ticker(symbol)
+        data = stock.history(period="1d")
+        if not data.empty:
+            last_quote = data.iloc[-1]
+            stock_data[symbol] = {
+                "price": round(last_quote["Close"], 2),
+                "change": round(last_quote["Close"] - last_quote["Open"], 2),
+                "percent_change": round((last_quote["Close"] - last_quote["Open"]) / last_quote["Open"] * 100, 2)
+            }
+    return stock_data
+
+def fetch_financial_news(page=1):
+    api_key = "76cac055c5ec487cb5f01affdd1bd27f"
+    url = f"https://newsapi.org/v2/top-headlines?category=business&country=us&pageSize=6&page={page}&apiKey={api_key}"
+    response = requests.get(url)
+    data = response.json()
+    if response.status_code == 200:
+        return data.get('articles', []), data.get('totalResults', [])
+    else:
+        logging.error("Failed to fetch financial news")
+        return [], 0
+
+# Routes
 @app.route('/')
 def index():
     if 'username' in session:
         return redirect(url_for('home'))
     return redirect(url_for('login'))
+
+@app.before_request
+def initialize_session():
+    if 'monitored_stocks' not in session:
+        session['monitored_stocks'] = MAGNIFICENT_7_SYMBOLS.copy()
 
 @app.route('/home')
 def home():
@@ -101,7 +145,6 @@ def home():
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         
-        # Get the latest balance for the logged-in user
         cursor.execute("""
             SELECT balance_after as current_balance 
             FROM transactions 
@@ -113,7 +156,6 @@ def home():
         balance_result = cursor.fetchone()
         current_balance = float(balance_result['current_balance']) if balance_result else 0.00
         
-        # Get count of recent transactions (e.g., last 30 days)
         cursor.execute("""
             SELECT COUNT(*) as transaction_count
             FROM transactions 
@@ -138,6 +180,64 @@ def home():
         if conn:
             conn.close()
 
+@app.route('/dashboard', methods=["GET", "POST"])
+def dashboard():
+    if 'username' not in session:
+        return redirect(url_for('login'))
+
+    stock_data = get_stock_data(session['monitored_stocks'])
+    local_timezone = timezone(timedelta(hours=8))
+    current_datetime = datetime.now(local_timezone).strftime('%d/%m/%Y %H:%M:%S')
+
+    page = int(request.args.get('page', 1))
+    news_articles, total_results = fetch_financial_news(page)
+    total_pages = (total_results // 6) + (1 if total_results % 6 > 0 else 0)
+
+    return render_template('dashboard.html', 
+                         stock_data=stock_data, 
+                         current_datetime=current_datetime, 
+                         news_articles=news_articles, 
+                         current_page=page, 
+                         total_pages=total_pages)
+
+# Stock-related routes
+@app.route('/search_stocks')
+def search_stocks():
+    query = request.args.get('query', '').upper()
+    if len(query) < 1:
+        return jsonify([])
+    results = [{"symbol": "AAPL", "name": "Apple Inc."}, {"symbol": "MSFT", "name": "Microsoft Corp"}]
+    matched_stocks = [stock for stock in results if query in stock['symbol']]
+    return jsonify(matched_stocks)
+
+@app.route('/add_stock', methods=['POST'])
+def add_stock():
+    symbol = request.args.get('symbol').upper()
+    stock = yf.Ticker(symbol)
+    data = stock.history(period="1d")
+    if not data.empty:
+        if symbol not in session['monitored_stocks']:
+            session['monitored_stocks'].append(symbol)
+            session.modified = True
+        return jsonify({"success": True, "symbol": symbol, "data": get_stock_data([symbol])[symbol]})
+    else:
+        return jsonify({"success": False, "error": "Invalid ticker symbol"}), 400
+
+@app.route('/remove_stock', methods=['POST'])
+def remove_stock():
+    symbol = request.args.get('symbol').upper()
+    if symbol in session['monitored_stocks']:
+        session['monitored_stocks'].remove(symbol)
+        session.modified = True
+    return '', 204
+
+@app.route('/get_stock_data', methods=['GET'])
+def get_stock_data_single():
+    symbol = request.args.get('symbol')
+    data = get_stock_data([symbol])
+    return jsonify(data.get(symbol, {}))
+
+# Authentication routes
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'GET':
@@ -172,10 +272,6 @@ def login():
             cursor.close()
         if conn:
             conn.close()
-
-@app.route('/get_transaction_choices')
-def get_transaction_choices():
-    return jsonify(TRANSACTION_CHOICES)
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -227,6 +323,7 @@ def logout():
     session.pop('username', None)
     return redirect(url_for('login'))
 
+# Transaction routes
 @app.route('/transactions')
 def transactions():
     if 'username' not in session:
@@ -236,7 +333,6 @@ def transactions():
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         
-        # First, get the latest balance
         cursor.execute("""
             SELECT balance_after as current_balance 
             FROM transactions 
@@ -248,7 +344,6 @@ def transactions():
         balance_result = cursor.fetchone()
         current_balance = float(balance_result['current_balance']) if balance_result else 0.00
         
-        # Then get all transactions
         cursor.execute("""
             SELECT 
                 transaction_id,
@@ -275,7 +370,6 @@ def transactions():
         
         transactions = cursor.fetchall()
 
-        # Pass the TRANSACTION_CHOICES to the template
         return render_template('transactions.html', 
                              transactions=transactions,
                              current_balance=current_balance,
@@ -293,6 +387,10 @@ def transactions():
         if conn:
             conn.close()
 
+@app.route('/get_transaction_choices')
+def get_transaction_choices():
+    return jsonify(TRANSACTION_CHOICES)
+
 @app.route('/insert_transaction', methods=['POST'])
 def insert_transaction():
     if 'username' not in session:
@@ -302,7 +400,6 @@ def insert_transaction():
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         
-        # Get the latest balance
         cursor.execute("""
             SELECT balance_after as current_balance 
             FROM transactions 
@@ -314,13 +411,11 @@ def insert_transaction():
         result = cursor.fetchone()
         current_balance = float(result['current_balance']) if result else 0.00
         
-        # Calculate new balance
         amount = float(request.form['amount'])
         if request.form['transaction_type'] == 'debit':
-            amount = -amount  # Make amount negative for debits
+            amount = -amount
         new_balance = current_balance + amount
         
-        # Insert new transaction
         cursor.execute("""
             INSERT INTO transactions (
                 username,
@@ -349,13 +444,10 @@ def insert_transaction():
             request.form['transaction_method']
         ))
         
-        # Get the new transaction ID
         transaction_id = cursor.fetchone()['transaction_id']
         conn.commit()
         
-        # Perform AI analysis on the new transaction
         analyze_transaction_with_ai(transaction_id)
-        
         flash('Transaction inserted successfully!', 'success')
         return redirect(url_for('transactions'))
         
@@ -401,7 +493,6 @@ def analyze_transaction_with_ai(transaction_id):
         if not transaction:
             return jsonify({'error': 'Transaction not found'}), 404
 
-        # Updated prompt with New York context
         transaction_description = f"""
         Please analyze this bank transaction for potential fraud, considering that the account holder lives in New York City. Provide a risk score between 0-100. Consider the following context:
         - Normal patterns include transactions in NY boroughs and nearby states
@@ -457,7 +548,6 @@ def reanalyze_all_transactions():
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         
-        # Get all transactions
         cursor.execute("""
             SELECT 
                 transaction_id,
@@ -476,7 +566,6 @@ def reanalyze_all_transactions():
         transactions = cursor.fetchall()
         
         for transaction in transactions:
-            # Construct context-aware prompt for each transaction
             prompt = f"""
             Analyze this bank transaction for potential fraud. Consider these guidelines:
             
@@ -543,7 +632,6 @@ def reanalyze_all_transactions():
             
             result = json.loads(response.choices[0].message.content)
             
-            # Update the transaction with new analysis
             cursor.execute("""
                 UPDATE transactions 
                 SET risk_score = %s,
@@ -605,43 +693,7 @@ def update_transaction_risk(transaction_id, ai_analysis):
         cursor.close()
         conn.close()
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///bank.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
-@app.route('/set_api_key', methods=['POST'])
-def set_api_key():
-    api_key = request.form['api_key']
-    session['api_key'] = api_key  # Store API key in session
-    os.environ['API_KEY'] = api_key  # Set the environment variable dynamically
-    genai.configure(api_key=api_key)  # Configure Gemini API with the new key
-    return redirect(url_for('index'))
-
-db = SQLAlchemy(app)
-
-with app.app_context():
-    db.create_all()
-    
-# Database Models
-class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False)
-    email = db.Column(db.String(120), unique=True, nullable=False)
-    password_hash = db.Column(db.String(256), nullable=False)
-    financial_profiles = db.relationship('FinancialProfile', backref='user', lazy=True)
-
-class FinancialProfile(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    age = db.Column(db.Integer)
-    gender = db.Column(db.String(20))
-    annual_income = db.Column(db.Float)
-    risk_level = db.Column(db.String(20))
-    investment_horizon = db.Column(db.String(20))
-    region = db.Column(db.String(50))
-    total_assets = db.Column(db.Float)
-    selected_portfolios = db.Column(db.String(500))  # Store as comma-separated string
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
+# Financial planning routes
 @app.route("/financial_planning", methods=["GET", "POST"])
 def financial_planning():
     return redirect("https://group-assignment-b6o6.onrender.com/financial_planning")
@@ -650,7 +702,6 @@ def financial_planning():
 def advice():
     advice_text = request.args.get('advice', 'No advice available.')
     return render_template("advice.html", advice=advice_text)
-
 
 if __name__ == '__main__':
     app.run(debug=True)

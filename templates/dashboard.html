@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RegionalBank - Dashboard</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/lucide.min.js"></script>
+    <style>
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen bg-gray-50">
+    <!-- Top Navigation Bar -->
+    <nav class="bg-blue-600 p-4 shadow-lg">
+        <div class="container mx-auto flex justify-between items-center">
+            <a href="{{ url_for('home') }}" class="text-white text-xl font-bold">RegionalBank</a>
+            
+            {% if session.username %}
+            <div class="flex items-center space-x-4">
+                <span class="text-white">Welcome, {{ session.username }}</span>
+                <a href="{{ url_for('logout') }}" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">Logout</a>
+            </div>
+            {% else %}
+            <div class="space-x-4">
+                <a href="{{ url_for('login') }}" class="text-white hover:text-gray-200">Login</a>
+                <a href="{{ url_for('register') }}" class="bg-white text-blue-600 px-4 py-2 rounded hover:bg-gray-100">Register</a>
+            </div>
+            {% endif %}
+        </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <div class="flex max-w-7xl mx-auto mt-8 gap-6 p-4">
+        <!-- Main Content -->
+        <main class="flex-1 space-y-6">
+            <!-- Stock Monitor Section -->
+            <div class="bg-white p-6 rounded-lg shadow-lg">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-xl font-semibold">Stock Monitor</h3>
+
+                    <!-- Combobox for Searching Tickers -->
+                    <div class="relative flex items-center">
+                        <input type="text" id="stock-search" placeholder="Enter stock ticker (e.g., AAPL)" 
+                            class="w-40 sm:w-60 p-2 rounded border border-gray-300"
+                            oninput="clearSearchError()" />
+                            <button onclick="addStock()" class="ml-2 bg-blue-500 text-white text-lg rounded-full w-8 h-8 flex items-center justify-center">
+                                +
+                                </button>
+                    </div>
+                </div>
+                <div id="search-error" class="text-red-500 mt-2 hidden">Invalid stock symbol.</div>
+            
+            <!-- Stock Monitor List -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4" id="stock-list">
+                    {% for symbol, data in stock_data.items() %}
+                    <div class="relative p-4 bg-gray-50 rounded-lg shadow text-center" data-symbol="{{ symbol }}">
+                        <button onclick="removeStock('{{ symbol }}')" class="absolute top-2 right-3 text-red-500 hover:text-red-700 text-lg">
+                            ✕
+                        </button>
+                        <h4 class="font-medium text-blue-600">{{ symbol }}</h4>
+                        <p class="text-2xl font-bold">${{ data.price }}</p>
+                        <p class="text-sm {% if data.change >= 0 %}text-green-500{% else %}text-red-500{% endif %} 
+                            {% if data.change >= 0 %}bg-green-100{% else %}bg-red-100{% endif %}
+                            py-1 px-2 rounded-full inline-block">
+                            {% if data.change >= 0 %}▲{% else %}▼{% endif %} {{ data.change }} ({{ data.percent_change }}%)
+                        </p>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="mt-6 text-center text-sm text-gray-500 italic flex items-center justify-center">
+                    <span>Stock prices are accurate as at {{ current_datetime }}.</span>
+                    <!-- Refresh Icon (SVG) -->
+                    <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="13" height="13" viewBox="0 0 256 256" xml:space="preserve" class="cursor-pointer transition-all ease-in-out duration-150 hover:scale-110 hover:fill-blue-600 ml-2" onclick="refreshPage()">
+                        <g style="stroke: none; stroke-width: 0; stroke-dasharray: none; stroke-linecap: butt; stroke-linejoin: miter; stroke-miterlimit: 10; fill: none; fill-rule: nonzero; opacity: 1;" transform="translate(1.4065934065934016 1.4065934065934016) scale(2.81 2.81)">
+                            <path d="M 81.521 31.109 c -0.86 -1.73 -2.959 -2.438 -4.692 -1.575 c -1.73 0.86 -2.436 2.961 -1.575 4.692 c 2.329 4.685 3.51 9.734 3.51 15.01 C 78.764 67.854 63.617 83 45 83 S 11.236 67.854 11.236 49.236 c 0 -16.222 11.501 -29.805 26.776 -33.033 l -3.129 4.739 c -1.065 1.613 -0.62 3.784 0.992 4.85 c 0.594 0.392 1.264 0.579 1.926 0.579 c 1.136 0 2.251 -0.553 2.924 -1.571 l 7.176 -10.87 c 0.001 -0.001 0.001 -0.002 0.002 -0.003 l 0.018 -0.027 c 0.063 -0.096 0.106 -0.199 0.159 -0.299 c 0.049 -0.093 0.108 -0.181 0.149 -0.279 c 0.087 -0.207 0.152 -0.419 0.197 -0.634 c 0.009 -0.041 0.008 -0.085 0.015 -0.126 c 0.031 -0.182 0.053 -0.364 0.055 -0.547 c 0 -0.014 0.004 -0.028 0.004 -0.042 c 0 -0.066 -0.016 -0.128 -0.019 -0.193 c -0.008 -0.145 -0.018 -0.288 -0.043 -0.431 c -0.018 -0.097 -0.045 -0.189 -0.071 -0.283 c -0.032 -0.118 -0.065 -0.236 -0.109 -0.35 c -0.037 -0.095 -0.081 -0.185 -0.125 -0.276 c -0.052 -0.107 -0.107 -0.211 -0.17 -0.313 c -0.054 -0.087 -0.114 -0.168 -0.175 -0.25 c -0.07 -0.093 -0.143 -0.183 -0.223 -0.27 c -0.074 -0.08 -0.153 -0.155 -0.234 -0.228 c -0.047 -0.042 -0.085 -0.092 -0.135 -0.132 L 36.679 0.775 c -1.503 -1.213 -3.708 -0.977 -4.921 0.53 c -1.213 1.505 -0.976 3.709 0.53 4.921 l 3.972 3.2 C 17.97 13.438 4.236 29.759 4.236 49.236 C 4.236 71.714 22.522 90 45 90 s 40.764 -18.286 40.764 -40.764 C 85.764 42.87 84.337 36.772 81.521 31.109 z" style="fill: rgb(37,99,234);" />
+                        </g>
+                    </svg>
+                </div>
+            </div>    
+            
+            <!-- Financial Updates -->
+            <div class="bg-white p-6 rounded-lg shadow-lg">
+                <h2 class="text-xl font-semibold mb-4">Financial Updates</h2>
+                <div class="space-y-4">
+                    <div class="news-container">
+                        {% if news_articles %}
+                            {% for article in news_articles %}
+                                <div class="news-article border-b py-4">
+                                    <div class="flex items-start space-x-4"> <!-- Adjusted Flexbox for even spacing -->
+                                        <!-- News Image -->
+                                        <img src="{{ article.urlToImage}}" 
+                                             alt="News Image" 
+                                             class="w-1/4 h-36 object-cover rounded-md"
+                                             onerror="this.onerror=null; this.src='https://icons.veryicon.com/png/o/miscellaneous/linear-icon-library-2/newspaper-31.png';"> <!-- Fixed height and consistent width -->
+            
+                                        <div class="news-content flex-1"> <!-- Flex-grow for consistent width -->
+                                            <!-- News Title and Link -->
+                                            <h3 class="text-lg font-semibold">
+                                                <a href="{{ article.url }}" target="_blank" class="text-blue-600 hover:underline">{{ article.title }}</a>
+                                            </h3>
+                                            <!-- Description -->
+                                            <p class="text-sm text-gray-600 mt-2">
+                                                {{ article.description or 'No description available.' }}
+                                            </p>
+                                            <!-- Meta Information -->
+                                            <p class="text-xs text-gray-400 mt-1">
+                                                By {{ article.author or 'Unknown Author' }} on {{ article.publishedAt[:10] }}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <p class="text-red-500">No news articles available at the moment.</p>
+                        {% endif %}
+                    </div>
+                    <!-- Pagination Controls -->
+                    <div class="flex items-center justify-center mt-6 space-x-4">
+                        <!-- Previous Button -->
+                        {% if current_page > 1 %}
+                            <button onclick="window.location.href='/dashboard?page={{ current_page - 1 }}'"
+                                    class="px-4 py-2 bg-gray-200 text-gray-700 rounded-full hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition ease-in-out duration-150">
+                                &larr; Previous
+                            </button>
+                        {% else %}
+                            <button class="px-4 py-2 bg-gray-200 text-gray-500 rounded-full cursor-not-allowed opacity-50" disabled>
+                                &larr; Previous
+                            </button>
+                        {% endif %}
+                    
+                        <!-- Page Number Display -->
+                        <span class="text-lg text-gray-700 font-semibold">Page {{ current_page }} of {{ total_pages }}</span>
+                    
+                        <!-- Next Button -->
+                        {% if current_page < total_pages %}
+                            <button onclick="window.location.href='/dashboard?page={{ current_page + 1 }}'"
+                                    class="px-4 py-2 bg-gray-200 text-gray-700 rounded-full hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition ease-in-out duration-150">
+                                Next &rarr;
+                            </button>
+                        {% else %}
+                            <button class="px-4 py-2 bg-gray-200 text-gray-500 rounded-full cursor-not-allowed opacity-50" disabled>
+                                Next &rarr;
+                            </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Chatbot Modal -->
+    <div id="chatbot" class="hidden fixed bottom-4 right-4 w-96 h-96 bg-white rounded-lg shadow-xl p-4">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="font-semibold">Customer Support</h3>
+            <button class="text-gray-500 hover:text-gray-700" onclick="toggleChatbot()">
+                ×
+            </button>
+        </div>
+        <div class="h-72 overflow-y-auto bg-gray-50 rounded p-4">
+            <!-- Chat messages -->
+            <div class="bg-blue-100 p-3 rounded-lg mb-2">
+                Hello! How can I help you today?
+            </div>
+        </div>
+        <div class="mt-4">
+            <input type="text" placeholder="Type your message..." class="w-full p-2 border rounded-lg" />
+        </div>
+    </div>
+
+    <!-- Notifications Panel -->
+    <div id="notifications" class="hidden fixed top-16 right-4 w-80 bg-white rounded-lg shadow-xl">
+        <div class="p-4">
+            <h3 class="font-semibold mb-4">Notifications</h3>
+            <div class="space-y-4">
+                <div class="p-3 bg-gray-50 rounded-lg">
+                    <p class="text-sm">New statement available</p>
+                    <span class="text-xs text-gray-500">2 hours ago</span>
+                </div>
+                <div class="p-3 bg-gray-50 rounded-lg">
+                    <p class="text-sm">Upcoming bill payment</p>
+                    <span class="text-xs text-gray-500">1 day ago</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+
+        // Toggle functions for notifications and chatbot
+        function toggleNotifications() {
+            const notifications = document.getElementById('notifications');
+            notifications.classList.toggle('hidden');
+        }
+
+        function toggleChatbot() {
+            const chatbot = document.getElementById('chatbot');
+            chatbot.classList.toggle('hidden');
+        }
+
+        // JavaScript for handling search and dynamic update of stocks
+        async function addStock() {
+            const symbol = document.getElementById('stock-search').value.toUpperCase();
+            if (!symbol) return;
+
+            // Check if the stock already exists in the list
+            const existingStock = document.querySelector(`[data-symbol="${symbol}"]`);
+            if (existingStock) {
+                alert(`${symbol} is already added to your stock monitor.`);
+                return;
+            }
+            
+            const response = await fetch(`/add_stock?symbol=${symbol}`, { method: 'POST' });
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                // Hide any previous error message
+                document.getElementById('search-error').classList.add('hidden');
+                // Dynamically add the new stock to the stock list
+                const data = result.data;
+                document.getElementById('stock-list').innerHTML += `
+                    <div class="relative p-4 bg-gray-50 rounded-lg shadow text-center" data-symbol="${symbol}">
+                        <button onclick="removeStock('${symbol}')" class="absolute top-2 right-3 text-red-500 hover:text-red-700 text-lg">
+                            ✕
+                        </button>
+                        <h4 class="font-medium text-blue-600">${symbol}</h4>
+                        <p class="text-2xl font-bold">$${data.price}</p>
+                        <p class="text-sm ${data.change >= 0 ? 'text-green-500' : 'text-red-500'} 
+                        ${data.change >= 0 ? 'bg-green-100' : 'bg-red-100'} py-1 px-2 rounded-full inline-block">
+                            ${data.change >= 0 ? '▲' : '▼'} ${data.change} (${data.percent_change}%)
+                        </p>
+                    </div>`;
+            } else {
+                // Show error message if invalid symbol
+                document.getElementById('search-error').classList.remove('hidden');
+            }
+        }
+
+        function clearSearchError() {
+            document.getElementById('search-error').classList.add('hidden');
+        }
+
+        async function removeStock(symbol) {
+            // Prompt the user for confirmation
+            const confirmation = window.confirm(`Are you sure you want to remove ${symbol}?`);
+
+            // If the user confirms, proceed with the removal
+            if (confirmation) {
+                try {
+                    // Send the request to the server to remove the stock
+                    const response = await fetch(`/remove_stock?symbol=${symbol}`, { method: 'POST' });
+
+                    // If the response is OK, remove the stock from the UI
+                    if (response.ok) {
+                        document.querySelector(`[data-symbol="${symbol}"]`).remove();
+                    } else {
+                        alert("Failed to remove stock. Please try again.");
+                    }
+                } catch (error) {
+                    console.error("Error removing stock:", error);
+                    alert("An error occurred. Please try again.");
+                }
+            }
+        }
+        // Function to refresh the page when the refresh button is clicked
+        function refreshPage() {
+            window.location.reload();
+        }
+    </script>
+</body>
+
+</html>
