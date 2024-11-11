@@ -3,23 +3,55 @@
 {% block title %}Home{% endblock %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto">
-    <h1 class="text-3xl font-bold mb-8">Welcome, {{ username }}!</h1>
-    
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div class="bg-white rounded-lg shadow-md p-6">
-            <h2 class="text-xl font-bold mb-4">Quick Links</h2>
-            <ul class="space-y-2">
-                <li>
-                    <a href="{{ url_for('transactions') }}" 
-                       class="text-blue-600 hover:text-blue-800">View Transactions</a>
-                </li>
-            </ul>
-        </div>
+<!-- Header already handled in base template -->
+
+<div class="flex">
+    <!-- Sidebar -->
+    <div class="w-64 bg-white p-6 min-h-screen">
+        <nav class="space-y-4">
+            <div class="bg-blue-50 text-blue-600 p-3 rounded-lg">
+                <a href="{{ url_for('home') }}" class="block">Dashboard</a>
+            </div>
+            <div class="p-3">
+                <a href="{{ url_for('financial_planning') }}" class="block text-gray-700 hover:text-blue-600">Financial Planning</a>
+            </div>
+            <div class="p-3">
+                <a href="{{ url_for('transactions') }}" class="block text-gray-700 hover:text-blue-600">Transactions</a>
+            </div>
+            <div class="p-3">
+                <a href="#" class="block text-gray-700 hover:text-blue-600">Settings</a>
+            </div>
+        </nav>
+    </div>
+
+    <!-- Main Content -->
+    <div class="flex-1 p-8 bg-gray-50">
+        <h1 class="text-2xl font-bold mb-8">Welcome to RegionalBank</h1>
         
-        <div class="bg-white rounded-lg shadow-md p-6">
-            <h2 class="text-xl font-bold mb-4">Account Overview</h2>
-            <p class="text-gray-600">Access your account information and recent transactions.</p>
+        <!-- Dashboard Cards -->
+        <div class="grid grid-cols-3 gap-6 mb-8">
+            <div class="bg-white p-6 rounded-lg shadow-sm">
+                <h2 class="text-gray-600 mb-2">Account Balance</h2>
+                <p class="text-2xl font-bold">${{ '{:,.2f}'.format(current_balance) }}</p>
+            </div>
+            
+            <div class="bg-white p-6 rounded-lg shadow-sm">
+                <h2 class="text-gray-600 mb-2">Investments</h2>
+                <p class="text-2xl font-bold">${{ '{:,.2f}'.format(5678.90) }}</p>
+            </div>
+            
+            <div class="bg-white p-6 rounded-lg shadow-sm">
+                <h2 class="text-gray-600 mb-2">Recent Activity</h2>
+                <p class="text-2xl font-bold">{{ recent_transactions }} transactions</p>
+            </div>
+        </div>
+
+        <!-- Get Started Section -->
+        <div class="bg-blue-50 p-6 rounded-lg">
+            <h2 class="text-xl font-bold mb-4">Get Started</h2>
+            <p class="text-gray-600">
+                Welcome to your personalized banking dashboard. Here you can manage your accounts, view transactions, and plan your financial future.
+            </p>
         </div>
     </div>
 </div>

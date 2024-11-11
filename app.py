@@ -96,7 +96,47 @@ def index():
 def home():
     if 'username' not in session:
         return redirect(url_for('login'))
-    return render_template('home.html', username=session['username'])
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        
+        # Get the latest balance for the logged-in user
+        cursor.execute("""
+            SELECT balance_after as current_balance 
+            FROM transactions 
+            WHERE username = %s 
+            ORDER BY transaction_date DESC, transaction_id DESC 
+            LIMIT 1
+        """, (session['username'],))
+        
+        balance_result = cursor.fetchone()
+        current_balance = float(balance_result['current_balance']) if balance_result else 0.00
+        
+        # Get count of recent transactions (e.g., last 30 days)
+        cursor.execute("""
+            SELECT COUNT(*) as transaction_count
+            FROM transactions 
+            WHERE username = %s 
+            AND transaction_date >= NOW() - INTERVAL '30 days'
+        """, (session['username'],))
+        
+        count_result = cursor.fetchone()
+        recent_transactions = count_result['transaction_count'] if count_result else 0
+        
+        return render_template('home.html', 
+                             username=session['username'],
+                             current_balance=current_balance,
+                             recent_transactions=recent_transactions)
+
+    except Exception as e:
+        flash(f'An error occurred: {str(e)}', 'error')
+        return redirect(url_for('login'))
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -604,92 +644,7 @@ class FinancialProfile(db.Model):
     
 @app.route("/financial_planning", methods=["GET", "POST"])
 def financial_planning():
-    if request.method == "POST":
-        # Debug Step 1: Print raw form data
-        print("\n==== Raw Form Data ====")
-        print("Form Data:", request.form)
-        
-        try:
-            # Debug Step 2: Extract form data with explicit error checking
-            print("\n==== Extracting Form Data ====")
-            
-            # Get form data with validation
-            age = request.form.get("age")
-            gender = request.form.get("gender")
-            annual_income = request.form.get("annual_income")
-            total_assets = request.form.get("total_assets")
-            
-            print(f"Age: {age}, type: {type(age)}")
-            print(f"Gender: {gender}, type: {type(gender)}")
-            print(f"Annual Income: {annual_income}, type: {type(annual_income)}")
-            print(f"Total Assets: {total_assets}, type: {type(total_assets)}")
-
-            # Validate all required fields are present
-            if not all([age, gender, annual_income, total_assets]):
-                missing_fields = []
-                if not age: missing_fields.append("age")
-                if not gender: missing_fields.append("gender")
-                if not annual_income: missing_fields.append("annual income")
-                if not total_assets: missing_fields.append("total assets")
-                error_msg = f"Missing required fields: {', '.join(missing_fields)}"
-                print(f"Validation Error: {error_msg}")
-                return render_template("advice.html", r=error_msg)
-
-            # Debug Step 3: Configure API
-            print("\n==== API Configuration ====")
-            api_key = "AIzaSyDtgxpFE0405T7m7l4llYVzW-eCb_Z-XMg"  # Replace with your actual key
-            if not api_key:
-                print("Error: No API key provided")
-                return render_template("advice.html", r="API key is missing")
-            
-            genai.configure(api_key=api_key)
-            model = genai.GenerativeModel("gemini-pro")
-            print("API configured successfully")
-
-            # Debug Step 4: Create prompt
-            prompt = f"""
-            As a financial advisor, provide specific investment advice for an investor with the following profile:
-
-            Demographics:
-            - Age: {age}
-            - Gender: {gender}
-
-            Financial Status:
-            - Annual Income: ${annual_income}
-            - Total Assets: ${total_assets}
-
-            Please provide:
-            1. Asset allocation recommendation based on age and financial status
-            2. Specific investment suggestions considering the financial profile
-            3. Timeline-based investment strategy
-            4. Risk considerations and diversification advice
-            """
-
-            print("\n==== Generated Prompt ====")
-            print(prompt)
-
-            # Debug Step 5: Generate response
-            response = model.generate_content(prompt)
-            print("Response received from API")
-            
-            if response and hasattr(response, 'text'):
-                advice_text = response.text
-                print(f"Generated text length: {len(advice_text)}")
-                print("Full advice text:", advice_text)
-                
-                # Return JSON response for AJAX
-                return jsonify({"advice": advice_text})
-            else:
-                error_msg = "Invalid response format from API"
-                print(f"Error: {error_msg}")
-                return jsonify({"advice": error_msg})
-                
-        except Exception as e:
-            error_msg = f"Server error: {str(e)}"
-            print(f"Server Error: {error_msg}")
-            return jsonify({"advice": error_msg})
-
-    return render_template("financial_planning.html")
+    return redirect("https://group-assignment-b6o6.onrender.com/financial_planning")
 
 @app.route("/advice")
 def advice():

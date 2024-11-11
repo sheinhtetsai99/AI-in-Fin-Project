@@ -8,25 +8,24 @@
 </head>
 <body class="bg-gray-100">
     <!-- Navigation Bar -->
-    <nav class="bg-blue-600 p-4 shadow-lg">
-        <div class="container mx-auto flex justify-between items-center">
-            <a href="{{ url_for('home') }}" class="text-white text-xl font-bold">RegionalBank</a>
-            
-            {% if session.username %}
-            <div class="flex items-center space-x-4">
-                <a href="{{ url_for('home') }}" class="text-white hover:text-gray-200">Dashboard</a>
-                <a href="{{ url_for('transactions') }}" class="text-white hover:text-gray-200">Transactions</a>
-                <span class="text-white">Welcome, {{ session.username }}</span>
-                <a href="{{ url_for('logout') }}" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">Logout</a>
-            </div>
-            {% else %}
-            <div class="space-x-4">
-                <a href="{{ url_for('login') }}" class="text-white hover:text-gray-200">Login</a>
-                <a href="{{ url_for('register') }}" class="bg-white text-blue-600 px-4 py-2 rounded hover:bg-gray-100">Register</a>
-            </div>
-            {% endif %}
+<!-- In base.html, modify the nav section -->
+<nav class="bg-blue-600 p-4 shadow-lg">
+    <div class="container mx-auto flex justify-between items-center">
+        <a href="{{ url_for('home') }}" class="text-white text-xl font-bold">RegionalBank</a>
+        
+        {% if session.username %}
+        <div class="flex items-center space-x-4">
+            <span class="text-white">Welcome, {{ session.username }}</span>
+            <a href="{{ url_for('logout') }}" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">Logout</a>
         </div>
-    </nav>
+        {% else %}
+        <div class="space-x-4">
+            <a href="{{ url_for('login') }}" class="text-white hover:text-gray-200">Login</a>
+            <a href="{{ url_for('register') }}" class="bg-white text-blue-600 px-4 py-2 rounded hover:bg-gray-100">Register</a>
+        </div>
+        {% endif %}
+    </div>
+</nav>
 
     <!-- Flash Messages -->
     <div class="container mx-auto mt-4">
