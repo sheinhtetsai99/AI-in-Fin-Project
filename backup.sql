@@ -229,4 +229,3 @@ ALTER TABLE ONLY public.transactions
 --
 -- PostgreSQL database dump complete
 --
-

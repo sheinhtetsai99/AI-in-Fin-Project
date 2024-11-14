@@ -3,13 +3,12 @@
 {% block title %}Home{% endblock %}
 
 {% block content %}
-<!-- Header already handled in base template -->
-
-<div class="flex">
-    <div class="w-64 bg-white p-6 min-h-screen">
-        <nav class="space-y-4">
-            <div class="bg-blue-50 text-blue-600 p-3 rounded-lg">
-                <a href="{{ url_for('dashboard') }}" class="block">Dashboard</a>
+<div class="flex h-screen">
+    <!-- Sidebar -->
+    <div class="w-64 bg-white shadow-sm">
+        <nav class="space-y-1">
+            <div class="p-3">
+                <a href="{{ url_for('dashboard') }}" class="block text-gray-700 hover:text-blue-600">Dashboard</a>
             </div>
             <div class="p-3">
                 <a href="{{ url_for('financial_planning') }}" class="block text-gray-700 hover:text-blue-600">Financial Planning</a>
@@ -17,8 +16,12 @@
             <div class="p-3">
                 <a href="{{ url_for('transactions') }}" class="block text-gray-700 hover:text-blue-600">Transactions</a>
             </div>
+            <div class="p-3">
+                <a href="{{ url_for('chatbot') }}" class="block text-gray-700 hover:text-blue-600">Chatbot</a>
+            </div>
         </nav>
     </div>
+    
     <!-- Main Content -->
     <div class="flex-1 p-8 bg-gray-50">
         <h1 class="text-2xl font-bold mb-8">Welcome to RegionalBank</h1>

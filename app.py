@@ -708,6 +708,11 @@ def update_transaction_risk(transaction_id, ai_analysis):
 def financial_planning():
     return redirect("https://group-assignment-b6o6.onrender.com/financial_planning")
 
+# chatbot routes
+@app.route("/chatbot", methods=["GET", "POST"])
+def chatbot():
+    return redirect("https://bc3409-chatbot-twld.onrender.com/")
+
 @app.route("/advice")
 def advice():
     advice_text = request.args.get('advice', 'No advice available.')
