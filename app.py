@@ -1,3 +1,4 @@
+import os
 from flask import Flask, jsonify, request, session, render_template, redirect, url_for, flash
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_cors import CORS
@@ -333,8 +334,9 @@ def transactions():
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         
+        # Fetch current balance with better error handling
         cursor.execute("""
-            SELECT balance_after as current_balance 
+            SELECT COALESCE(balance_after, 0) as current_balance 
             FROM transactions 
             WHERE username = %s 
             ORDER BY transaction_date DESC, transaction_id DESC 
@@ -342,23 +344,24 @@ def transactions():
         """, (session['username'],))
         
         balance_result = cursor.fetchone()
-        current_balance = float(balance_result['current_balance']) if balance_result else 0.00
+        current_balance = float(balance_result['current_balance'] if balance_result else 0.00)
         
+        # Fetch transactions with better error handling
         cursor.execute("""
             SELECT 
                 transaction_id,
                 transaction_date,
                 description,
-                amount,
+                COALESCE(amount, 0) as amount,
                 transaction_type,
-                balance_after,
+                COALESCE(balance_after, 0) as balance_after,
                 merchant_category_code,
                 location,
                 ip_address,
                 device_id,
                 transaction_method,
-                status,
-                risk_score,
+                COALESCE(status, 'pending') as status,
+                COALESCE(risk_score, 0) as risk_score,
                 ai_reasoning,
                 ai_flags,
                 fraud_flag,
@@ -379,7 +382,8 @@ def transactions():
                              transaction_methods=TRANSACTION_CHOICES['transaction_methods'])
 
     except Exception as e:
-        flash(f'An error occurred: {str(e)}', 'error')
+        logging.error(f"Error in transactions route: {str(e)}", exc_info=True)
+        flash(f'An error occurred while loading transactions. Please try again.', 'error')
         return redirect(url_for('home'))
     finally:
         if cursor:
@@ -411,10 +415,16 @@ def insert_transaction():
         result = cursor.fetchone()
         current_balance = float(result['current_balance']) if result else 0.00
         
-        amount = float(request.form['amount'])
+        # Get the absolute amount from the form
+        amount = abs(float(request.form['amount']))
+        
+        # For debits, we subtract from the balance
+        # For credits, we add to the balance
         if request.form['transaction_type'] == 'debit':
-            amount = -amount
-        new_balance = current_balance + amount
+            amount = -amount  # Make the amount negative for debits
+            new_balance = current_balance + amount  # This will subtract since amount is negative
+        else:
+            new_balance = current_balance + amount  # Add for credits
         
         cursor.execute("""
             INSERT INTO transactions (
@@ -436,7 +446,7 @@ def insert_transaction():
         """, (
             session['username'],
             request.form['description'],
-            amount,
+            amount,  # Store the signed amount
             request.form['transaction_type'],
             new_balance,
             request.form['merchant_name'],
