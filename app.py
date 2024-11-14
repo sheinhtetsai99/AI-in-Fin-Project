@@ -91,7 +91,7 @@ client = openai.OpenAI(
 )
 
 # Database configuration
-DB_HOST = "localhost"
+DB_HOST = "34.136.240.18"
 DB_NAME = "sampledb"
 DB_USER = "postgres"
 DB_PASS = "password"
