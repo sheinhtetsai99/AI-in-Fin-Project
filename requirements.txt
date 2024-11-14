@@ -9,6 +9,7 @@ Werkzeug==2.3.7
 python-dotenv==1.0.0
 SQLAlchemy==2.0.21
 psycopg2-binary==2.9.9
+yfinance==0.2.33
 annotated-types==0.7.0
 anyio==3.7.1
 blinker==1.9.0
