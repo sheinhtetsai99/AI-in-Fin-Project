@@ -3,31 +3,45 @@
 {% block title %}Login{% endblock %}
 
 {% block content %}
-<div class="max-w-md mx-auto bg-white rounded-lg shadow-md p-8">
-    <h2 class="text-2xl font-bold mb-6 text-center">Login</h2>
-    <form method="POST" action="{{ url_for('login') }}">
-        <div class="mb-4">
-            <label for="username" class="block text-gray-700 text-sm font-bold mb-2">Username</label>
-            <input type="text" id="username" name="username" 
-                   class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                   required>
+<div class="max-w-4xl mx-auto mt-8 flex justify-center gap-6">
+    <!-- Login Form -->
+    <div class="bg-white rounded-lg shadow-md p-8 w-[400px]">
+        <h2 class="text-2xl font-bold mb-6 text-center">Login</h2>
+        <form method="POST" action="{{ url_for('login') }}">
+            <div class="mb-4">
+                <label for="username" class="block text-gray-700 text-sm font-bold mb-2">Username</label>
+                <input type="text" id="username" name="username"
+                       class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                       required>
+            </div>
+            <div class="mb-6">
+                <label for="password" class="block text-gray-700 text-sm font-bold mb-2">Password</label>
+                <input type="password" id="password" name="password"
+                       class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                       required>
+            </div>
+            <div class="flex items-center justify-between">
+                <button type="submit"
+                        class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline w-full">
+                    Login
+                </button>
+            </div>
+        </form>
+        <p class="text-center mt-4 text-sm">
+            Don't have an account? 
+            <a href="{{ url_for('register') }}" class="text-blue-600 hover:text-blue-800">Register here</a>
+        </p>
+    </div>
+
+    <!-- Compact Test Account Notice -->
+    <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 h-fit">
+        <p class="text-sm font-medium text-yellow-800">Test Account Available</p>
+        <p class="text-sm text-yellow-700 mt-1">For Risk Analytics Demo:</p>
+        <div class="text-sm font-mono mt-1 text-yellow-700">
+            <div>Username: testaccount2</div>
+            <div>Password: password123</div>
         </div>
-        <div class="mb-6">
-            <label for="password" class="block text-gray-700 text-sm font-bold mb-2">Password</label>
-            <input type="password" id="password" name="password"
-                   class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                   required>
-        </div>
-        <div class="flex items-center justify-between">
-            <button type="submit" 
-                    class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline w-full">
-                Login
-            </button>
-        </div>
-    </form>
-    <p class="text-center mt-4 text-sm">
-        Don't have an account? 
-        <a href="{{ url_for('register') }}" class="text-blue-600 hover:text-blue-800">Register here</a>
-    </p>
+        <p class="text-xs text-yellow-600 mt-2">Pre-loaded with transaction data for testing.</p>
+    </div>
 </div>
 {% endblock %}
